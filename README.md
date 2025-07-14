@@ -80,26 +80,11 @@ az deployment group create \
   --parameters @parameters/main.parameters.json
 ```
 
-#### 5. Upload SonarQube configuration files
-After deployment, upload the required configuration files:
-```bash
-# Get the storage account name from deployment outputs
-STORAGE_ACCOUNT=$(az deployment group show \
-  --resource-group rg-sonarqube \
-  --name main \
-  --query 'properties.outputs.storageAccountName.value' \
-  --output tsv)
-
-# Upload configuration files
-./scripts/upload-config.sh -g rg-sonarqube -s $STORAGE_ACCOUNT
-```
-
-#### 6. Restart container group to pick up configuration
-```bash
-az container restart \
-  --resource-group rg-sonarqube \
-  --name sonarqube-container-group
-```
+The deployment automatically:
+- ✅ Creates storage account and file shares
+- ✅ Uploads SonarQube configuration files
+- ✅ Configures container group with persistent storage
+- ✅ Sets up reverse proxy with Caddy
 
 #### 5. Get deployment outputs
 ```bash

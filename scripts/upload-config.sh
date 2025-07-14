@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# DEPRECATED: This script is no longer needed!
+# The sonar.properties configuration is now automatically uploaded during Bicep deployment.
+# This script is kept for reference only.
+
 # Script to upload SonarQube configuration files to Azure File Share
 # This script should be run after the Azure deployment is complete
 

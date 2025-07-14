@@ -258,6 +258,64 @@ resource extensionsFileShare 'Microsoft.Storage/storageAccounts/fileServices/sha
   }
 }
 
+// Deployment script to upload SonarQube configuration files
+resource uploadConfigScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'upload-sonarqube-config'
+  location: location
+  tags: tags
+  kind: 'AzureCLI'
+  properties: {
+    azCliVersion: '2.50.0'
+    timeout: 'PT10M'
+    retentionInterval: 'PT1H'
+    environmentVariables: [
+      {
+        name: 'STORAGE_ACCOUNT_NAME'
+        value: storageAccount.name
+      }
+      {
+        name: 'STORAGE_ACCOUNT_KEY'
+        secureValue: storageAccount.listKeys().keys[0].value
+      }
+    ]
+    scriptContent: '''
+# Create sonar.properties content
+cat > sonar.properties << 'EOF'
+# SonarQube Configuration for Container Deployment
+# This file contains essential settings for running SonarQube in Azure Container Instances
+
+# Disable memory mapping for Elasticsearch in containerized environments
+# This is crucial for SonarQube to start properly in containers
+sonar.search.javaAdditionalOpts=-Dnode.store.allow_mmap=false
+
+# Set web context path (optional, defaults to /)
+# sonar.web.context=/
+
+# Set web port (optional, defaults to 9000)
+# sonar.web.port=9000
+
+# Additional JVM options for SonarQube server
+# Optimize for container environment
+sonar.web.javaAdditionalOpts=-Xmx2048m -Xms512m
+EOF
+
+# Upload sonar.properties to the conf file share
+echo "Uploading sonar.properties to conf file share..."
+az storage file upload \
+    --account-name "$STORAGE_ACCOUNT_NAME" \
+    --account-key "$STORAGE_ACCOUNT_KEY" \
+    --share-name "conf" \
+    --source "./sonar.properties" \
+    --path "sonar.properties"
+
+echo "Configuration files uploaded successfully!"
+'''
+  }
+  dependsOn: [
+    confFileShare
+  ]
+}
+
 @description('The FQDN of the SonarQube application')
 output sonarQubeUrl string = 'http://${containerGroup.properties.ipAddress.fqdn}'
 
