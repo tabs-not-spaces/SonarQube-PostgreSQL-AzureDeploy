@@ -11,6 +11,14 @@ Click the button above to deploy directly to Azure. You'll be prompted to provid
 - Docker Hub username and password/token
 - Azure region and resource naming preferences
 
+## Features
+
+- **Azure Container Registry Support**: Use private ACR with managed identity authentication instead of Docker Hub
+- **PostgreSQL Flexible Server**: Managed database service with automatic backups
+- **Container Instances**: Serverless container hosting with automatic scaling
+- **Caddy Reverse Proxy**: Automatic HTTPS with Let's Encrypt (configurable)
+- **Managed Identity**: Secure authentication to ACR without storing credentials
+
 ## Architecture
 
 This deployment creates:
@@ -32,6 +40,8 @@ This deployment creates:
 Since Docker Hub now requires authentication to pull images, you'll need to provide:
 - Docker Hub username
 - Docker Hub password or Personal Access Token (recommended)
+
+**Note**: You can now use Azure Container Registry (ACR) instead of Docker Hub for improved security and reduced external dependencies. See [ACR Integration Guide](docs/ACR-Integration.md) for details.
 
 To create a Personal Access Token:
 1. Log in to Docker Hub
@@ -175,10 +185,17 @@ az group delete --name rg-sonarqube --yes --no-wait
 │   ├── main.bicep                    # Main Bicep template
 │   └── modules/
 │       ├── postgresql.bicep          # PostgreSQL Flexible Server module
-│       └── container-group.bicep     # Container Instance Group module
+│       ├── container-group.bicep     # Container Instance Group module
+│       ├── acr.bicep                 # Azure Container Registry module
+│       └── managed-identity.bicep    # Managed Identity module
 ├── parameters/
-│   ├── main.parameters.json          # Development parameters
+│   ├── main.parameters.json          # Development parameters (Docker Hub)
+│   ├── main-with-acr.parameters.json # Parameters with ACR configuration
 │   └── production.parameters.json    # Production parameters example
+├── scripts/
+│   └── Push-ImagesToACR.ps1          # PowerShell script to populate ACR
+├── docs/
+│   └── ACR-Integration.md             # ACR integration guide
 ├── azuredeploy.json                  # ARM template (generated from Bicep)
 ├── azuredeploy.parameters.json       # ARM parameters for Deploy button
 ├── deploy.sh                         # Automated deployment script

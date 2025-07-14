@@ -4,12 +4,21 @@ param location string
 @description('Name of the container group')
 param containerGroupName string
 
-@description('Docker Hub username')
-param dockerHubUsername string
+@description('Docker Hub username (optional, used only if useACR is false)')
+param dockerHubUsername string = ''
 
 @secure()
-@description('Docker Hub password/token')
-param dockerHubPassword string
+@description('Docker Hub password/token (optional, used only if useACR is false)')
+param dockerHubPassword string = ''
+
+@description('Whether to use Azure Container Registry instead of Docker Hub')
+param useACR bool = false
+
+@description('ACR login server (required if useACR is true)')
+param acrLoginServer string = ''
+
+@description('Managed identity resource ID for ACR authentication (required if useACR is true)')
+param managedIdentityId string = ''
 
 @description('SonarQube container image version')
 param sonarQubeVersion string = 'community'
@@ -42,10 +51,20 @@ param tags object = {}
 // Caddy configuration will be provided via a simple approach
 // since Container Instances don't support ConfigMaps like Kubernetes
 
+// Determine image sources based on configuration
+var sonarQubeImage = useACR ? '${acrLoginServer}/sonarqube:${sonarQubeVersion}' : 'sonarqube:${sonarQubeVersion}'
+var caddyImage = useACR ? '${acrLoginServer}/caddy:${caddyVersion}' : 'caddy:${caddyVersion}'
+
 resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
   name: containerGroupName
   location: location
   tags: tags
+  identity: useACR ? {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentityId}': {}
+    }
+  } : null
   properties: {
     osType: 'Linux'
     restartPolicy: 'Always'
@@ -59,7 +78,12 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
       ]
       dnsNameLabel: '${containerGroupName}-${uniqueString(resourceGroup().id)}'
     }
-    imageRegistryCredentials: [
+    imageRegistryCredentials: useACR ? [
+      {
+        server: acrLoginServer
+        identity: managedIdentityId
+      }
+    ] : [
       {
         server: 'docker.io'
         username: dockerHubUsername
@@ -70,7 +94,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
       {
         name: 'sonarqube'
         properties: {
-          image: 'sonarqube:${sonarQubeVersion}'
+          image: sonarQubeImage
           resources: {
             requests: {
               cpu: cpuCores - 1
@@ -120,7 +144,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
       {
         name: 'caddy'
         properties: {
-          image: 'caddy:${caddyVersion}'
+          image: caddyImage
           resources: {
             requests: {
               cpu: json('0.5')

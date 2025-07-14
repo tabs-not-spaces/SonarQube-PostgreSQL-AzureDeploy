@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.177.2456",
-      "templateHash": "10248326064277704506"
+      "templateHash": "17713003354464714484"
     }
   },
   "parameters": {
@@ -51,14 +51,37 @@
     },
     "dockerHubUsername": {
       "type": "string",
+      "defaultValue": "",
       "metadata": {
-        "description": "Docker Hub username"
+        "description": "Docker Hub username (optional, used only if useACR is false)"
       }
     },
     "dockerHubPassword": {
       "type": "securestring",
+      "defaultValue": "",
       "metadata": {
-        "description": "Docker Hub password/token"
+        "description": "Docker Hub password/token (optional, used only if useACR is false)"
+      }
+    },
+    "useACR": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Whether to use Azure Container Registry instead of Docker Hub"
+      }
+    },
+    "acrName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure Container Registry name (required if useACR is true)"
+      }
+    },
+    "createACR": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Create new ACR or use existing ACR in the same resource group"
       }
     },
     "sonarQubeVersion": {
@@ -101,6 +124,263 @@
     }
   },
   "resources": [
+    {
+      "condition": "[and(parameters('useACR'), parameters('createACR'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "acr-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "acrName": {
+            "value": "[parameters('acrName')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.36.177.2456",
+              "templateHash": "8745421503968379278"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the Azure Container Registry"
+              }
+            },
+            "acrName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Azure Container Registry"
+              }
+            },
+            "acrSku": {
+              "type": "string",
+              "defaultValue": "Standard",
+              "allowedValues": [
+                "Basic",
+                "Standard",
+                "Premium"
+              ],
+              "metadata": {
+                "description": "SKU for the Azure Container Registry"
+              }
+            },
+            "adminUserEnabled": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Enable admin user for the ACR"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-07-01",
+              "name": "[parameters('acrName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('acrSku')]"
+              },
+              "properties": {
+                "adminUserEnabled": "[parameters('adminUserEnabled')]",
+                "networkRuleSet": {
+                  "defaultAction": "Allow"
+                },
+                "policies": {
+                  "quarantinePolicy": {
+                    "status": "disabled"
+                  },
+                  "trustPolicy": {
+                    "type": "Notary",
+                    "status": "disabled"
+                  },
+                  "retentionPolicy": {
+                    "days": 7,
+                    "status": "disabled"
+                  },
+                  "exportPolicy": {
+                    "status": "enabled"
+                  }
+                },
+                "encryption": {
+                  "status": "disabled"
+                },
+                "dataEndpointEnabled": false,
+                "publicNetworkAccess": "Enabled",
+                "networkRuleBypassOptions": "AzureServices"
+              }
+            }
+          ],
+          "outputs": {
+            "acrId": {
+              "type": "string",
+              "metadata": {
+                "description": "The resource ID of the ACR"
+              },
+              "value": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]"
+            },
+            "acrName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the ACR"
+              },
+              "value": "[parameters('acrName')]"
+            },
+            "acrLoginServer": {
+              "type": "string",
+              "metadata": {
+                "description": "The login server of the ACR"
+              },
+              "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('useACR')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "managed-identity-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "identityName": {
+            "value": "[format('{0}-identity', parameters('containerGroupName'))]"
+          },
+          "acrName": {
+            "value": "[parameters('acrName')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.36.177.2456",
+              "templateHash": "4958961100052064730"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the managed identity"
+              }
+            },
+            "identityName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the user-assigned managed identity"
+              }
+            },
+            "acrName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the ACR to assign pull permissions to"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to resources"
+              }
+            }
+          },
+          "variables": {
+            "acrPullRoleDefinitionId": "7f951dda-4ed3-4680-a7ca-43fe172d538d"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[parameters('identityName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.ContainerRegistry/registries/{0}', parameters('acrName'))]",
+              "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName')), variables('acrPullRoleDefinitionId'))]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPullRoleDefinitionId'))]",
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName')), '2023-01-31').principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "identityId": {
+              "type": "string",
+              "metadata": {
+                "description": "The resource ID of the managed identity"
+              },
+              "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName'))]"
+            },
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "The principal ID of the managed identity"
+              },
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName')), '2023-01-31').principalId]"
+            },
+            "clientId": {
+              "type": "string",
+              "metadata": {
+                "description": "The client ID of the managed identity"
+              },
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName')), '2023-01-31').clientId]"
+            },
+            "identityName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the managed identity"
+              },
+              "value": "[parameters('identityName')]"
+            }
+          }
+        }
+      }
+    },
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2022-09-01",
@@ -323,6 +603,11 @@
           "dockerHubPassword": {
             "value": "[parameters('dockerHubPassword')]"
           },
+          "useACR": {
+            "value": "[parameters('useACR')]"
+          },
+          "acrLoginServer": "[if(parameters('useACR'), if(parameters('createACR'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2022-09-01').outputs.acrLoginServer.value), createObject('value', reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer)), createObject('value', ''))]",
+          "managedIdentityId": "[if(parameters('useACR'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'managed-identity-deployment'), '2022-09-01').outputs.identityId.value), createObject('value', ''))]",
           "sonarQubeVersion": {
             "value": "[parameters('sonarQubeVersion')]"
           },
@@ -358,7 +643,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.36.177.2456",
-              "templateHash": "1758405211185184045"
+              "templateHash": "17369348824513765792"
             }
           },
           "parameters": {
@@ -376,14 +661,37 @@
             },
             "dockerHubUsername": {
               "type": "string",
+              "defaultValue": "",
               "metadata": {
-                "description": "Docker Hub username"
+                "description": "Docker Hub username (optional, used only if useACR is false)"
               }
             },
             "dockerHubPassword": {
               "type": "securestring",
+              "defaultValue": "",
               "metadata": {
-                "description": "Docker Hub password/token"
+                "description": "Docker Hub password/token (optional, used only if useACR is false)"
+              }
+            },
+            "useACR": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Whether to use Azure Container Registry instead of Docker Hub"
+              }
+            },
+            "acrLoginServer": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "ACR login server (required if useACR is true)"
+              }
+            },
+            "managedIdentityId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Managed identity resource ID for ACR authentication (required if useACR is true)"
               }
             },
             "sonarQubeVersion": {
@@ -446,6 +754,10 @@
               }
             }
           },
+          "variables": {
+            "sonarQubeImage": "[if(parameters('useACR'), format('{0}/sonarqube:{1}', parameters('acrLoginServer'), parameters('sonarQubeVersion')), format('sonarqube:{0}', parameters('sonarQubeVersion')))]",
+            "caddyImage": "[if(parameters('useACR'), format('{0}/caddy:{1}', parameters('acrLoginServer'), parameters('caddyVersion')), format('caddy:{0}', parameters('caddyVersion')))]"
+          },
           "resources": [
             {
               "type": "Microsoft.ContainerInstance/containerGroups",
@@ -453,6 +765,7 @@
               "name": "[parameters('containerGroupName')]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
+              "identity": "[if(parameters('useACR'), createObject('type', 'UserAssigned', 'userAssignedIdentities', createObject(format('{0}', parameters('managedIdentityId')), createObject())), null())]",
               "properties": {
                 "osType": "Linux",
                 "restartPolicy": "Always",
@@ -466,18 +779,12 @@
                   ],
                   "dnsNameLabel": "[format('{0}-{1}', parameters('containerGroupName'), uniqueString(resourceGroup().id))]"
                 },
-                "imageRegistryCredentials": [
-                  {
-                    "server": "docker.io",
-                    "username": "[parameters('dockerHubUsername')]",
-                    "password": "[parameters('dockerHubPassword')]"
-                  }
-                ],
+                "imageRegistryCredentials": "[if(parameters('useACR'), createArray(createObject('server', parameters('acrLoginServer'), 'identity', parameters('managedIdentityId'))), createArray(createObject('server', 'docker.io', 'username', parameters('dockerHubUsername'), 'password', parameters('dockerHubPassword'))))]",
                 "containers": [
                   {
                     "name": "sonarqube",
                     "properties": {
-                      "image": "[format('sonarqube:{0}', parameters('sonarQubeVersion'))]",
+                      "image": "[variables('sonarQubeImage')]",
                       "resources": {
                         "requests": {
                           "cpu": "[sub(parameters('cpuCores'), 1)]",
@@ -527,7 +834,7 @@
                   {
                     "name": "caddy",
                     "properties": {
-                      "image": "[format('caddy:{0}', parameters('caddyVersion'))]",
+                      "image": "[variables('caddyImage')]",
                       "resources": {
                         "requests": {
                           "cpu": "[json('0.5')]",
@@ -618,6 +925,8 @@
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'managed-identity-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]"
       ]
     }
@@ -643,6 +952,20 @@
         "description": "Container group public IP"
       },
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-group-deployment'), '2022-09-01').outputs.publicIpAddress.value]"
+    },
+    "acrLoginServer": {
+      "type": "string",
+      "metadata": {
+        "description": "ACR login server (if ACR is used)"
+      },
+      "value": "[if(parameters('useACR'), if(parameters('createACR'), reference(resourceId('Microsoft.Resources/deployments', 'acr-deployment'), '2022-09-01').outputs.acrLoginServer.value, reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer), '')]"
+    },
+    "managedIdentityClientId": {
+      "type": "string",
+      "metadata": {
+        "description": "Managed identity client ID (if ACR is used)"
+      },
+      "value": "[if(parameters('useACR'), reference(resourceId('Microsoft.Resources/deployments', 'managed-identity-deployment'), '2022-09-01').outputs.clientId.value, '')]"
     }
   }
 }
