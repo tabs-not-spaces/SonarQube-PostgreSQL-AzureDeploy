@@ -51,6 +51,28 @@ param tags object = {
   Environment: 'Production'
 }
 
+@description('Enable Azure Monitor logs for containers')
+param enableAzureMonitorLogs bool = true
+
+@description('Log Analytics workspace name')
+param logAnalyticsWorkspaceName string = 'sonarqube-logs-${uniqueString(resourceGroup().id)}'
+
+@description('Log retention in days for Log Analytics workspace')
+@minValue(30)
+@maxValue(730)
+param logRetentionInDays int = 30
+
+// Deploy Log Analytics workspace for container monitoring if enabled
+module logAnalytics 'modules/log-analytics.bicep' = if (enableAzureMonitorLogs) {
+  name: 'log-analytics-deployment'
+  params: {
+    location: location
+    workspaceName: logAnalyticsWorkspaceName
+    retentionInDays: logRetentionInDays
+    tags: tags
+  }
+}
+
 // Deploy ACR if useACR is true and createACR is true
 module acr 'modules/acr.bicep' = if (useACR && createACR) {
   name: 'acr-deployment'
@@ -109,6 +131,9 @@ module containerGroup 'modules/container-group.bicep' = {
     postgresUsername: postgresAdminUsername
     postgresPassword: postgresAdminPassword
     databaseName: databaseName
+    enableAzureMonitorLogs: enableAzureMonitorLogs
+    logAnalyticsWorkspaceId: enableAzureMonitorLogs ? logAnalytics.outputs.workspaceCustomerId : ''
+    logAnalyticsWorkspaceKey: enableAzureMonitorLogs ? logAnalytics.outputs.workspacePrimarySharedKey : ''
     tags: tags
   }
   dependsOn: useACR ? [managedIdentity] : []
@@ -131,3 +156,9 @@ output acrLoginServer string = useACR ? (createACR ? acr.outputs.acrLoginServer 
 
 @description('Managed identity client ID (if ACR is used)')
 output managedIdentityClientId string = useACR ? managedIdentity.outputs.clientId : ''
+
+@description('Log Analytics workspace ID (if Azure Monitor logs are enabled)')
+output logAnalyticsWorkspaceId string = enableAzureMonitorLogs ? logAnalytics.outputs.workspaceId : ''
+
+@description('Log Analytics workspace name (if Azure Monitor logs are enabled)')
+output logAnalyticsWorkspaceName string = enableAzureMonitorLogs ? logAnalytics.outputs.workspaceName : ''

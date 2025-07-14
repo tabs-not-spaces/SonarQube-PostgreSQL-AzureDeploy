@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.177.2456",
-      "templateHash": "5532361604182188187"
+      "templateHash": "11011763384063478981"
     }
   },
   "parameters": {
@@ -121,9 +121,168 @@
       "metadata": {
         "description": "Tags to apply to all resources"
       }
+    },
+    "enableAzureMonitorLogs": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable Azure Monitor logs for containers"
+      }
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "defaultValue": "[format('sonarqube-logs-{0}', uniqueString(resourceGroup().id))]",
+      "metadata": {
+        "description": "Log Analytics workspace name"
+      }
+    },
+    "logRetentionInDays": {
+      "type": "int",
+      "defaultValue": 30,
+      "minValue": 30,
+      "maxValue": 730,
+      "metadata": {
+        "description": "Log retention in days for Log Analytics workspace"
+      }
     }
   },
   "resources": [
+    {
+      "condition": "[parameters('enableAzureMonitorLogs')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "log-analytics-deployment",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "workspaceName": {
+            "value": "[parameters('logAnalyticsWorkspaceName')]"
+          },
+          "retentionInDays": {
+            "value": "[parameters('logRetentionInDays')]"
+          },
+          "tags": {
+            "value": "[parameters('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.36.177.2456",
+              "templateHash": "17561373429076765339"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the Log Analytics workspace"
+              }
+            },
+            "workspaceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Log Analytics workspace"
+              }
+            },
+            "retentionInDays": {
+              "type": "int",
+              "defaultValue": 30,
+              "minValue": 30,
+              "maxValue": 730,
+              "metadata": {
+                "description": "Log retention in days (30-730)"
+              }
+            },
+            "sku": {
+              "type": "string",
+              "defaultValue": "PerGB2018",
+              "allowedValues": [
+                "Free",
+                "Standard",
+                "Premium",
+                "PerNode",
+                "PerGB2018",
+                "Standalone",
+                "CapacityReservation"
+              ],
+              "metadata": {
+                "description": "Pricing tier for Log Analytics workspace"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Tags to apply to the Log Analytics workspace"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('workspaceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "[parameters('sku')]"
+                },
+                "retentionInDays": "[parameters('retentionInDays')]",
+                "features": {
+                  "enableLogAccessUsingOnlyResourcePermissions": true
+                },
+                "workspaceCapping": {
+                  "dailyQuotaGb": "[json('-1')]"
+                },
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+              }
+            }
+          ],
+          "outputs": {
+            "workspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace resource ID"
+              },
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+            },
+            "workspaceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace name"
+              },
+              "value": "[parameters('workspaceName')]"
+            },
+            "workspaceCustomerId": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace customer ID"
+              },
+              "value": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2023-09-01').customerId]"
+            },
+            "workspacePrimarySharedKey": {
+              "type": "string",
+              "metadata": {
+                "description": "Log Analytics workspace primary shared key"
+              },
+              "value": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2023-09-01').primarySharedKey]"
+            }
+          }
+        }
+      }
+    },
     {
       "condition": "[and(parameters('useACR'), parameters('createACR'))]",
       "type": "Microsoft.Resources/deployments",
@@ -632,6 +791,11 @@
           "databaseName": {
             "value": "[parameters('databaseName')]"
           },
+          "enableAzureMonitorLogs": {
+            "value": "[parameters('enableAzureMonitorLogs')]"
+          },
+          "logAnalyticsWorkspaceId": "[if(parameters('enableAzureMonitorLogs'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment'), '2022-09-01').outputs.workspaceCustomerId.value), createObject('value', ''))]",
+          "logAnalyticsWorkspaceKey": "[if(parameters('enableAzureMonitorLogs'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment'), '2022-09-01').outputs.workspacePrimarySharedKey.value), createObject('value', ''))]",
           "tags": {
             "value": "[parameters('tags')]"
           }
@@ -643,7 +807,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.36.177.2456",
-              "templateHash": "16996895392732975384"
+              "templateHash": "17519078871117640100"
             }
           },
           "parameters": {
@@ -752,6 +916,27 @@
               "metadata": {
                 "description": "Tags to apply to resources"
               }
+            },
+            "enableAzureMonitorLogs": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Enable Azure Monitor logs for containers"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Log Analytics workspace customer ID"
+              }
+            },
+            "logAnalyticsWorkspaceKey": {
+              "type": "securestring",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Log Analytics workspace primary shared key"
+              }
             }
           },
           "variables": {
@@ -779,6 +964,7 @@
                   ],
                   "dnsNameLabel": "[format('{0}-{1}', parameters('containerGroupName'), uniqueString(resourceGroup().id))]"
                 },
+                "diagnostics": "[if(parameters('enableAzureMonitorLogs'), createObject('logAnalytics', createObject('workspaceId', parameters('logAnalyticsWorkspaceId'), 'workspaceKey', parameters('logAnalyticsWorkspaceKey'))), null())]",
                 "imageRegistryCredentials": "[if(parameters('useACR'), createArray(createObject('server', parameters('acrLoginServer'), 'identity', parameters('managedIdentityId'))), createArray(createObject('server', 'docker.io', 'username', parameters('dockerHubUsername'), 'password', parameters('dockerHubPassword'))))]",
                 "containers": [
                   {
@@ -1028,6 +1214,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'acr-deployment')]",
+        "[resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'managed-identity-deployment')]",
         "[resourceId('Microsoft.Resources/deployments', 'postgresql-deployment')]"
       ]
@@ -1075,6 +1262,20 @@
         "description": "Managed identity client ID (if ACR is used)"
       },
       "value": "[if(parameters('useACR'), reference(resourceId('Microsoft.Resources/deployments', 'managed-identity-deployment'), '2022-09-01').outputs.clientId.value, '')]"
+    },
+    "logAnalyticsWorkspaceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace ID (if Azure Monitor logs are enabled)"
+      },
+      "value": "[if(parameters('enableAzureMonitorLogs'), reference(resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment'), '2022-09-01').outputs.workspaceId.value, '')]"
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace name (if Azure Monitor logs are enabled)"
+      },
+      "value": "[if(parameters('enableAzureMonitorLogs'), reference(resourceId('Microsoft.Resources/deployments', 'log-analytics-deployment'), '2022-09-01').outputs.workspaceName.value, '')]"
     }
   }
 }

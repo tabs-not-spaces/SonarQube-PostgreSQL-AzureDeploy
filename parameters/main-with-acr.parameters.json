@@ -53,6 +53,15 @@
         "Environment": "Development",
         "Owner": "DevOps Team"
       }
+    },
+    "enableAzureMonitorLogs": {
+      "value": true
+    },
+    "logAnalyticsWorkspaceName": {
+      "value": "sonarqube-logs-workspace"
+    },
+    "logRetentionInDays": {
+      "value": 30
     }
   }
 }
