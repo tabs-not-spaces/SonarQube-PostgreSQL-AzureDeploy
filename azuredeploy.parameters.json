@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "East US"
+    },
+    "postgresAdminUsername": {
+      "value": "sonaradmin"
+    },
+    "postgresAdminPassword": {
+      "value": "CHANGE_ME_SecurePassword123!"
+    },
+    "postgresServerName": {
+      "value": "sonarqube-postgresql-server"
+    },
+    "databaseName": {
+      "value": "sonarqube"
+    },
+    "containerGroupName": {
+      "value": "sonarqube-containers"
+    },
+    "dockerHubUsername": {
+      "value": "YOUR_DOCKERHUB_USERNAME"
+    },
+    "dockerHubPassword": {
+      "value": "YOUR_DOCKERHUB_PASSWORD_OR_TOKEN"
+    },
+    "sonarQubeVersion": {
+      "value": "community"
+    },
+    "nginxVersion": {
+      "value": "alpine"
+    },
+    "cpuCores": {
+      "value": 2
+    },
+    "memoryInGb": {
+      "value": 4
+    },
+    "tags": {
+      "value": {
+        "Application": "SonarQube",
+        "Environment": "Development",
+        "Owner": "DevOps Team"
+      }
+    }
+  }
+}
