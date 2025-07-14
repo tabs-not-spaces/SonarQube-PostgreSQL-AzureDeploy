@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.177.2456",
-      "templateHash": "11011763384063478981"
+      "templateHash": "10391590325545819133"
     }
   },
   "parameters": {
@@ -807,7 +807,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.36.177.2456",
-              "templateHash": "17519078871117640100"
+              "templateHash": "4846447565007789771"
             }
           },
           "parameters": {
@@ -953,7 +953,7 @@
               "identity": "[if(parameters('useACR'), createObject('type', 'UserAssigned', 'userAssignedIdentities', createObject(format('{0}', parameters('managedIdentityId')), createObject())), null())]",
               "properties": {
                 "osType": "Linux",
-                "restartPolicy": "Always",
+                "restartPolicy": "Never",
                 "ipAddress": {
                   "type": "Public",
                   "ports": [
