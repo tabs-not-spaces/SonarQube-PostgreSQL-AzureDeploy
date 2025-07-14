@@ -27,8 +27,8 @@ param dockerHubPassword string
 @description('SonarQube version tag')
 param sonarQubeVersion string = 'community'
 
-@description('Nginx image tag')
-param nginxVersion string = 'alpine'
+@description('Caddy image tag')
+param caddyVersion string = 'alpine'
 
 @description('CPU cores for container group')
 param cpuCores int = 2
@@ -55,7 +55,7 @@ module postgresql 'modules/postgresql.bicep' = {
   }
 }
 
-// Deploy Container Group with SonarQube and Nginx
+// Deploy Container Group with SonarQube and Caddy
 module containerGroup 'modules/container-group.bicep' = {
   name: 'container-group-deployment'
   params: {
@@ -64,7 +64,7 @@ module containerGroup 'modules/container-group.bicep' = {
     dockerHubUsername: dockerHubUsername
     dockerHubPassword: dockerHubPassword
     sonarQubeVersion: sonarQubeVersion
-    nginxVersion: nginxVersion
+    caddyVersion: caddyVersion
     cpuCores: cpuCores
     memoryInGb: memoryInGb
     postgresServerName: postgresql.outputs.serverName

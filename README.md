@@ -1,6 +1,6 @@
 # SonarQube-PostgreSQL-AzureDeploy
 
-Bicep deployment files for a SonarQube deployment backed by a PostgreSQL database, deployed on Azure Container Instances with an Nginx reverse proxy.
+Bicep deployment files for a SonarQube deployment backed by a PostgreSQL database, deployed on Azure Container Instances with a Caddy reverse proxy.
 
 ## Quick Start
 
@@ -17,7 +17,7 @@ This deployment creates:
 - **Azure PostgreSQL Flexible Server** - Database backend for SonarQube
 - **Azure Container Instance Group** containing:
   - SonarQube Community Edition container
-  - Nginx reverse proxy container
+  - Caddy reverse proxy container
 - **Azure Storage Account** - For persistent SonarQube data (optional)
 
 ## Prerequisites
@@ -97,8 +97,8 @@ az deployment group show \
 - **Network**: Public access enabled with firewall rules
 
 ### Container Resources
-- **CPU**: 2 cores total (1.5 for SonarQube, 0.5 for Nginx)
-- **Memory**: 4GB total (3GB for SonarQube, 1GB for Nginx)
+- **CPU**: 2 cores total (1.5 for SonarQube, 0.5 for Caddy)
+- **Memory**: 4GB total (3GB for SonarQube, 1GB for Caddy)
 - **Networking**: Public IP with DNS label
 
 ### Security Considerations
@@ -120,7 +120,7 @@ Modify these parameters in the parameters file:
 
 ### Versions
 - `sonarQubeVersion`: Change SonarQube container tag
-- `nginxVersion`: Change Nginx container tag
+- `caddyVersion`: Change Caddy container tag
 - `postgresVersion`: Change PostgreSQL version (in postgresql.bicep)
 
 ### Storage
@@ -133,7 +133,7 @@ The deployment includes an Azure Storage Account for potential persistent data s
 ### Container Logs
 ```bash
 az container logs --resource-group rg-sonarqube --name sonarqube-containers --container-name sonarqube
-az container logs --resource-group rg-sonarqube --name sonarqube-containers --container-name nginx
+az container logs --resource-group rg-sonarqube --name sonarqube-containers --container-name caddy
 ```
 
 ### PostgreSQL Metrics
@@ -157,10 +157,10 @@ Monitor through Azure Portal or Azure Monitor:
    - Check connection string format
    - Confirm database credentials
 
-3. **Nginx proxy issues**
+3. **Caddy proxy issues**
    - Verify SonarQube container is running
    - Check port configurations
-   - Review nginx logs
+   - Review caddy logs
 
 ### Cleanup
 To remove all resources:

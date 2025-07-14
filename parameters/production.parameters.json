@@ -29,7 +29,7 @@
     "sonarQubeVersion": {
       "value": "community"
     },
-    "nginxVersion": {
+    "caddyVersion": {
       "value": "alpine"
     },
     "cpuCores": {
