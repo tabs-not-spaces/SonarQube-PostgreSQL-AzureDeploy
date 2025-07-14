@@ -2,6 +2,15 @@
 
 Bicep deployment files for a SonarQube deployment backed by a PostgreSQL database, deployed on Azure Container Instances with an Nginx reverse proxy.
 
+## Quick Start
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Ftabs-not-spaces%2FSonarQube-PostgreSQL-AzureDeploy%2Fmain%2Fazuredeploy.json)
+
+Click the button above to deploy directly to Azure. You'll be prompted to provide:
+- PostgreSQL admin credentials  
+- Docker Hub username and password/token
+- Azure region and resource naming preferences
+
 ## Architecture
 
 This deployment creates:
@@ -32,13 +41,15 @@ To create a Personal Access Token:
 
 ## Deployment
 
-### 1. Clone the repository
+### Manual Deployment
+
+#### 1. Clone the repository
 ```bash
 git clone https://github.com/tabs-not-spaces/SonarQube-PostgreSQL-AzureDeploy.git
 cd SonarQube-PostgreSQL-AzureDeploy
 ```
 
-### 2. Update parameters
+#### 2. Update parameters
 Edit `parameters/main.parameters.json` and update the following values:
 - `postgresAdminPassword`: Strong password for PostgreSQL admin
 - `dockerHubUsername`: Your Docker Hub username
@@ -46,12 +57,12 @@ Edit `parameters/main.parameters.json` and update the following values:
 - `location`: Azure region for deployment
 - Other parameters as needed
 
-### 3. Create resource group
+#### 3. Create resource group
 ```bash
 az group create --name rg-sonarqube --location "East US"
 ```
 
-### 4. Deploy the template
+#### 4. Deploy the template
 ```bash
 az deployment group create \
   --resource-group rg-sonarqube \
@@ -59,7 +70,7 @@ az deployment group create \
   --parameters @parameters/main.parameters.json
 ```
 
-### 5. Get deployment outputs
+#### 5. Get deployment outputs
 ```bash
 az deployment group show \
   --resource-group rg-sonarqube \
@@ -156,6 +167,25 @@ To remove all resources:
 ```bash
 az group delete --name rg-sonarqube --yes --no-wait
 ```
+
+## Repository Structure
+
+```
+├── bicep/
+│   ├── main.bicep                    # Main Bicep template
+│   └── modules/
+│       ├── postgresql.bicep          # PostgreSQL Flexible Server module
+│       └── container-group.bicep     # Container Instance Group module
+├── parameters/
+│   ├── main.parameters.json          # Development parameters
+│   └── production.parameters.json    # Production parameters example
+├── azuredeploy.json                  # ARM template (generated from Bicep)
+├── azuredeploy.parameters.json       # ARM parameters for Deploy button
+├── deploy.sh                         # Automated deployment script
+└── README.md                         # This file
+```
+
+> **Note**: The `azuredeploy.json` and `azuredeploy.parameters.json` files are generated from the Bicep templates to support the "Deploy to Azure" button functionality.
 
 ## Contributing
 
