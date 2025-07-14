@@ -80,6 +80,12 @@ az deployment group create \
   --parameters @parameters/main.parameters.json
 ```
 
+The deployment automatically:
+- ✅ Creates storage account and file shares
+- ✅ Uploads SonarQube configuration files
+- ✅ Configures container group with persistent storage
+- ✅ Sets up reverse proxy with Caddy
+
 #### 5. Get deployment outputs
 ```bash
 az deployment group show \
@@ -161,6 +167,8 @@ Monitor through Azure Portal or Azure Monitor:
    - Check Docker Hub credentials
    - Verify container resource allocations
    - Review container logs
+   - **For SonarQube specifically**: Ensure `sonar.properties` is uploaded to the conf file share
+   - **Memory mapping error**: The included `sonar.properties` disables memory mapping which is required for containers
 
 2. **Database connection issues**
    - Verify PostgreSQL firewall rules
@@ -171,6 +179,11 @@ Monitor through Azure Portal or Azure Monitor:
    - Verify SonarQube container is running
    - Check port configurations
    - Review caddy logs
+
+4. **Configuration not taking effect**
+   - Ensure configuration files are uploaded to Azure File Shares
+   - Restart the container group after uploading config files
+   - Check volume mounts in container logs
 
 ### Cleanup
 To remove all resources:

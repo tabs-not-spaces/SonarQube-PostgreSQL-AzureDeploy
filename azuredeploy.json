@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.177.2456",
-      "templateHash": "17713003354464714484"
+      "templateHash": "5532361604182188187"
     }
   },
   "parameters": {
@@ -643,7 +643,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.36.177.2456",
-              "templateHash": "17369348824513765792"
+              "templateHash": "16996895392732975384"
             }
           },
           "parameters": {
@@ -817,6 +817,10 @@
                       ],
                       "volumeMounts": [
                         {
+                          "name": "sonarqube-conf",
+                          "mountPath": "/opt/sonarqube/conf"
+                        },
+                        {
                           "name": "sonarqube-data",
                           "mountPath": "/opt/sonarqube/data"
                         },
@@ -848,28 +852,58 @@
                         }
                       ],
                       "command": [
-                        "/bin/sh",
-                        "-c",
-                        "echo \":80 { reverse_proxy localhost:9000 }\" > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile"
+                        "caddy",
+                        "reverse-proxy",
+                        "--from",
+                        ":80",
+                        "--to",
+                        "localhost:9000"
                       ]
                     }
                   }
                 ],
                 "volumes": [
                   {
+                    "name": "sonarqube-conf",
+                    "azureFile": {
+                      "shareName": "conf",
+                      "storageAccountName": "[format('sonarqube{0}', uniqueString(resourceGroup().id))]",
+                      "storageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id))), '2023-01-01').keys[0].value]",
+                      "readOnly": false
+                    }
+                  },
+                  {
                     "name": "sonarqube-data",
-                    "emptyDir": {}
+                    "azureFile": {
+                      "shareName": "data",
+                      "storageAccountName": "[format('sonarqube{0}', uniqueString(resourceGroup().id))]",
+                      "storageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id))), '2023-01-01').keys[0].value]",
+                      "readOnly": false
+                    }
                   },
                   {
                     "name": "sonarqube-logs",
-                    "emptyDir": {}
+                    "azureFile": {
+                      "shareName": "logs",
+                      "storageAccountName": "[format('sonarqube{0}', uniqueString(resourceGroup().id))]",
+                      "storageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id))), '2023-01-01').keys[0].value]",
+                      "readOnly": false
+                    }
                   },
                   {
                     "name": "sonarqube-extensions",
-                    "emptyDir": {}
+                    "azureFile": {
+                      "shareName": "extensions",
+                      "storageAccountName": "[format('sonarqube{0}', uniqueString(resourceGroup().id))]",
+                      "storageAccountKey": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id))), '2023-01-01').keys[0].value]",
+                      "readOnly": false
+                    }
                   }
                 ]
-              }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id)))]"
+              ]
             },
             {
               "type": "Microsoft.Storage/storageAccounts",
@@ -890,11 +924,72 @@
             {
               "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
               "apiVersion": "2023-01-01",
-              "name": "[format('{0}/default/sonarqube-data', format('sonarqube{0}', uniqueString(resourceGroup().id)))]",
+              "name": "[format('{0}/default/conf', format('sonarqube{0}', uniqueString(resourceGroup().id)))]",
+              "properties": {
+                "shareQuota": 1
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/default/data', format('sonarqube{0}', uniqueString(resourceGroup().id)))]",
               "properties": {
                 "shareQuota": 10
               },
               "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/default/logs', format('sonarqube{0}', uniqueString(resourceGroup().id)))]",
+              "properties": {
+                "shareQuota": 5
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/default/extensions', format('sonarqube{0}', uniqueString(resourceGroup().id)))]",
+              "properties": {
+                "shareQuota": 5
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id)))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2023-08-01",
+              "name": "upload-sonarqube-config",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "AzureCLI",
+              "properties": {
+                "azCliVersion": "2.50.0",
+                "timeout": "PT10M",
+                "retentionInterval": "PT1H",
+                "environmentVariables": [
+                  {
+                    "name": "STORAGE_ACCOUNT_NAME",
+                    "value": "[format('sonarqube{0}', uniqueString(resourceGroup().id))]"
+                  },
+                  {
+                    "name": "STORAGE_ACCOUNT_KEY",
+                    "secureValue": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id))), '2023-01-01').keys[0].value]"
+                  }
+                ],
+                "scriptContent": "# Create sonar.properties content\ncat > sonar.properties << 'EOF'\n# SonarQube Configuration for Container Deployment\n# This file contains essential settings for running SonarQube in Azure Container Instances\n\n# Disable memory mapping for Elasticsearch in containerized environments\n# This is crucial for SonarQube to start properly in containers\nsonar.search.javaAdditionalOpts=-Dnode.store.allow_mmap=false\n\n# Set web context path (optional, defaults to /)\n# sonar.web.context=/\n\n# Set web port (optional, defaults to 9000)\n# sonar.web.port=9000\n\n# Additional JVM options for SonarQube server\n# Optimize for container environment\nsonar.web.javaAdditionalOpts=-Xmx2048m -Xms512m\nEOF\n\n# Upload sonar.properties to the conf file share\necho \"Uploading sonar.properties to conf file share...\"\naz storage file upload \\\n    --account-name \"$STORAGE_ACCOUNT_NAME\" \\\n    --account-key \"$STORAGE_ACCOUNT_KEY\" \\\n    --share-name \"conf\" \\\n    --source \"./sonar.properties\" \\\n    --path \"sonar.properties\"\n\necho \"Configuration files uploaded successfully!\"\n"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/fileServices/shares', split(format('{0}/default/conf', format('sonarqube{0}', uniqueString(resourceGroup().id))), '/')[0], split(format('{0}/default/conf', format('sonarqube{0}', uniqueString(resourceGroup().id))), '/')[1], split(format('{0}/default/conf', format('sonarqube{0}', uniqueString(resourceGroup().id))), '/')[2])]",
                 "[resourceId('Microsoft.Storage/storageAccounts', format('sonarqube{0}', uniqueString(resourceGroup().id)))]"
               ]
             }
@@ -920,6 +1015,13 @@
                 "description": "The container group name"
               },
               "value": "[parameters('containerGroupName')]"
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "The storage account name used for persistence"
+              },
+              "value": "[format('sonarqube{0}', uniqueString(resourceGroup().id))]"
             }
           }
         }
@@ -952,6 +1054,13 @@
         "description": "Container group public IP"
       },
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-group-deployment'), '2022-09-01').outputs.publicIpAddress.value]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Storage account name for persistence"
+      },
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'container-group-deployment'), '2022-09-01').outputs.storageAccountName.value]"
     },
     "acrLoginServer": {
       "type": "string",

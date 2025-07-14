@@ -123,6 +123,9 @@ output sonarQubeUrl string = containerGroup.outputs.sonarQubeUrl
 @description('Container group public IP')
 output publicIpAddress string = containerGroup.outputs.publicIpAddress
 
+@description('Storage account name for persistence')
+output storageAccountName string = containerGroup.outputs.storageAccountName
+
 @description('ACR login server (if ACR is used)')
 output acrLoginServer string = useACR ? (createACR ? acr.outputs.acrLoginServer : existingACR.properties.loginServer) : ''
 

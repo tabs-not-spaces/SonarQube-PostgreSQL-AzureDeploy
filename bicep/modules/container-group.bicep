@@ -127,6 +127,10 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
           ]
           volumeMounts: [
             {
+              name: 'sonarqube-conf'
+              mountPath: '/opt/sonarqube/conf'
+            }
+            {
               name: 'sonarqube-data'
               mountPath: '/opt/sonarqube/data'
             }
@@ -158,31 +162,58 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
             }
           ]
           command: [
-            '/bin/sh'
-            '-c'
-            'echo ":80 { reverse_proxy localhost:9000 }" > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile'
+            'caddy'
+            'reverse-proxy'
+            '--from'
+            ':80'
+            '--to'
+            'localhost:9000'
           ]
         }
       }
     ]
     volumes: [
       {
+        name: 'sonarqube-conf'
+        azureFile: {
+          shareName: 'conf'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
+      }
+      {
         name: 'sonarqube-data'
-        emptyDir: {}
+        azureFile: {
+          shareName: 'data'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
       }
       {
         name: 'sonarqube-logs'
-        emptyDir: {}
+        azureFile: {
+          shareName: 'logs'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
       }
       {
         name: 'sonarqube-extensions'
-        emptyDir: {}
+        azureFile: {
+          shareName: 'extensions'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
       }
     ]
   }
 }
 
-// Create a storage account for persistent SonarQube data (optional enhancement)
+// Create a storage account for persistent SonarQube data
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: 'sonarqube${uniqueString(resourceGroup().id)}'
   location: location
@@ -198,11 +229,91 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   }
 }
 
-resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
-  name: '${storageAccount.name}/default/sonarqube-data'
+// Create file shares for SonarQube persistence
+resource confFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/conf'
+  properties: {
+    shareQuota: 1
+  }
+}
+
+resource dataFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/data'
   properties: {
     shareQuota: 10
   }
+}
+
+resource logsFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/logs'
+  properties: {
+    shareQuota: 5
+  }
+}
+
+resource extensionsFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/extensions'
+  properties: {
+    shareQuota: 5
+  }
+}
+
+// Deployment script to upload SonarQube configuration files
+resource uploadConfigScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'upload-sonarqube-config'
+  location: location
+  tags: tags
+  kind: 'AzureCLI'
+  properties: {
+    azCliVersion: '2.50.0'
+    timeout: 'PT10M'
+    retentionInterval: 'PT1H'
+    environmentVariables: [
+      {
+        name: 'STORAGE_ACCOUNT_NAME'
+        value: storageAccount.name
+      }
+      {
+        name: 'STORAGE_ACCOUNT_KEY'
+        secureValue: storageAccount.listKeys().keys[0].value
+      }
+    ]
+    scriptContent: '''
+# Create sonar.properties content
+cat > sonar.properties << 'EOF'
+# SonarQube Configuration for Container Deployment
+# This file contains essential settings for running SonarQube in Azure Container Instances
+
+# Disable memory mapping for Elasticsearch in containerized environments
+# This is crucial for SonarQube to start properly in containers
+sonar.search.javaAdditionalOpts=-Dnode.store.allow_mmap=false
+
+# Set web context path (optional, defaults to /)
+# sonar.web.context=/
+
+# Set web port (optional, defaults to 9000)
+# sonar.web.port=9000
+
+# Additional JVM options for SonarQube server
+# Optimize for container environment
+sonar.web.javaAdditionalOpts=-Xmx2048m -Xms512m
+EOF
+
+# Upload sonar.properties to the conf file share
+echo "Uploading sonar.properties to conf file share..."
+az storage file upload \
+    --account-name "$STORAGE_ACCOUNT_NAME" \
+    --account-key "$STORAGE_ACCOUNT_KEY" \
+    --share-name "conf" \
+    --source "./sonar.properties" \
+    --path "sonar.properties"
+
+echo "Configuration files uploaded successfully!"
+'''
+  }
+  dependsOn: [
+    confFileShare
+  ]
 }
 
 @description('The FQDN of the SonarQube application')
@@ -213,3 +324,6 @@ output publicIpAddress string = containerGroup.properties.ipAddress.ip
 
 @description('The container group name')
 output containerGroupName string = containerGroup.name
+
+@description('The storage account name used for persistence')
+output storageAccountName string = storageAccount.name
