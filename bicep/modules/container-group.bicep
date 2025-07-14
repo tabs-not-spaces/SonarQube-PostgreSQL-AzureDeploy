@@ -77,7 +77,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
   } : null
   properties: {
     osType: 'Linux'
-    restartPolicy: 'Always'
+    restartPolicy: 'Never'
     ipAddress: {
       type: 'Public'
       ports: [
