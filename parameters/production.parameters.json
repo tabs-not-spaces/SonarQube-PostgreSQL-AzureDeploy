@@ -46,6 +46,15 @@
         "CostCenter": "Engineering",
         "Backup": "Required"
       }
+    },
+    "enableAzureMonitorLogs": {
+      "value": true
+    },
+    "logAnalyticsWorkspaceName": {
+      "value": "sonarqube-logs-prod"
+    },
+    "logRetentionInDays": {
+      "value": 90
     }
   }
 }

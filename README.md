@@ -13,6 +13,7 @@ Click the button above to deploy directly to Azure. You'll be prompted to provid
 
 ## Features
 
+- **Azure Monitor Logs**: Integrated Log Analytics workspace for container monitoring and troubleshooting
 - **Azure Container Registry Support**: Use private ACR with managed identity authentication instead of Docker Hub
 - **PostgreSQL Flexible Server**: Managed database service with automatic backups
 - **Container Instances**: Serverless container hosting with automatic scaling
@@ -22,6 +23,7 @@ Click the button above to deploy directly to Azure. You'll be prompted to provid
 ## Architecture
 
 This deployment creates:
+- **Azure Log Analytics Workspace** - For container monitoring and log aggregation
 - **Azure PostgreSQL Flexible Server** - Database backend for SonarQube
 - **Azure Container Instance Group** containing:
   - SonarQube Community Edition container
@@ -134,6 +136,11 @@ Modify these parameters in the parameters file:
 - `memoryInGb`: Increase memory allocation
 - PostgreSQL SKU in the postgresql.bicep module
 
+### Azure Monitor Configuration
+- `enableAzureMonitorLogs`: Enable/disable Log Analytics workspace (default: true)
+- `logAnalyticsWorkspaceName`: Custom name for Log Analytics workspace
+- `logRetentionInDays`: Log retention period (30-730 days, default: 30)
+
 ### Versions
 - `sonarQubeVersion`: Change SonarQube container tag
 - `caddyVersion`: Change Caddy container tag
@@ -146,7 +153,24 @@ The deployment includes an Azure Storage Account for potential persistent data s
 
 ## Monitoring and Logs
 
-### Container Logs
+### Azure Monitor Logs
+The deployment includes an Azure Log Analytics workspace that automatically collects:
+- Container console output (stdout/stderr)
+- Container startup/shutdown events
+- Resource utilization metrics
+- Application logs from SonarQube and Caddy
+
+Access logs through:
+- **Azure Portal**: Navigate to Log Analytics workspace → Logs → Query container logs
+- **Azure CLI**: 
+  ```bash
+  # Query container logs
+  az monitor log-analytics query \
+    --workspace <workspace-id> \
+    --analytics-query "ContainerInstanceLog_CL | where ContainerGroup_s == 'your-container-group-name'"
+  ```
+
+### Container Logs (Alternative)
 ```bash
 az container logs --resource-group rg-sonarqube --name sonarqube-containers --container-name sonarqube
 az container logs --resource-group rg-sonarqube --name sonarqube-containers --container-name caddy
@@ -166,9 +190,16 @@ Monitor through Azure Portal or Azure Monitor:
 1. **Container startup failures**
    - Check Docker Hub credentials
    - Verify container resource allocations
-   - Review container logs
+   - Review container logs using Azure Monitor or Azure CLI
    - **For SonarQube specifically**: Ensure `sonar.properties` is uploaded to the conf file share
    - **Memory mapping error**: The included `sonar.properties` disables memory mapping which is required for containers
+   - **Azure Monitor Logs**: Query the Log Analytics workspace for detailed startup logs:
+     ```kusto
+     ContainerInstanceLog_CL 
+     | where ContainerGroup_s == "your-container-group-name"
+     | where LogSource_s == "stderr"
+     | order by TimeGenerated desc
+     ```
 
 2. **Database connection issues**
    - Verify PostgreSQL firewall rules
@@ -199,6 +230,7 @@ az group delete --name rg-sonarqube --yes --no-wait
 │   └── modules/
 │       ├── postgresql.bicep          # PostgreSQL Flexible Server module
 │       ├── container-group.bicep     # Container Instance Group module
+│       ├── log-analytics.bicep       # Log Analytics Workspace module
 │       ├── acr.bicep                 # Azure Container Registry module
 │       └── managed-identity.bicep    # Managed Identity module
 ├── parameters/

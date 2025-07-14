@@ -48,6 +48,16 @@ param databaseName string
 @description('Tags to apply to resources')
 param tags object = {}
 
+@description('Enable Azure Monitor logs for containers')
+param enableAzureMonitorLogs bool = true
+
+@description('Log Analytics workspace customer ID')
+param logAnalyticsWorkspaceId string = ''
+
+@secure()
+@description('Log Analytics workspace primary shared key')
+param logAnalyticsWorkspaceKey string = ''
+
 // Caddy configuration will be provided via a simple approach
 // since Container Instances don't support ConfigMaps like Kubernetes
 
@@ -78,6 +88,12 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
       ]
       dnsNameLabel: '${containerGroupName}-${uniqueString(resourceGroup().id)}'
     }
+    diagnostics: enableAzureMonitorLogs ? {
+      logAnalytics: {
+        workspaceId: logAnalyticsWorkspaceId
+        workspaceKey: logAnalyticsWorkspaceKey
+      }
+    } : null
     imageRegistryCredentials: useACR ? [
       {
         server: acrLoginServer
