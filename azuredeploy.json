@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.177.2456",
-      "templateHash": "17339776570783197073"
+      "templateHash": "10248326064277704506"
     }
   },
   "parameters": {
@@ -68,11 +68,11 @@
         "description": "SonarQube version tag"
       }
     },
-    "nginxVersion": {
+    "caddyVersion": {
       "type": "string",
       "defaultValue": "alpine",
       "metadata": {
-        "description": "Nginx image tag"
+        "description": "Caddy image tag"
       }
     },
     "cpuCores": {
@@ -326,8 +326,8 @@
           "sonarQubeVersion": {
             "value": "[parameters('sonarQubeVersion')]"
           },
-          "nginxVersion": {
-            "value": "[parameters('nginxVersion')]"
+          "caddyVersion": {
+            "value": "[parameters('caddyVersion')]"
           },
           "cpuCores": {
             "value": "[parameters('cpuCores')]"
@@ -358,7 +358,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.36.177.2456",
-              "templateHash": "1410989091238966773"
+              "templateHash": "1758405211185184045"
             }
           },
           "parameters": {
@@ -393,11 +393,11 @@
                 "description": "SonarQube container image version"
               }
             },
-            "nginxVersion": {
+            "caddyVersion": {
               "type": "string",
               "defaultValue": "alpine",
               "metadata": {
-                "description": "Nginx container image version"
+                "description": "Caddy container image version"
               }
             },
             "cpuCores": {
@@ -525,9 +525,9 @@
                     }
                   },
                   {
-                    "name": "nginx",
+                    "name": "caddy",
                     "properties": {
-                      "image": "[format('nginx:{0}', parameters('nginxVersion'))]",
+                      "image": "[format('caddy:{0}', parameters('caddyVersion'))]",
                       "resources": {
                         "requests": {
                           "cpu": "[json('0.5')]",
@@ -543,7 +543,7 @@
                       "command": [
                         "/bin/sh",
                         "-c",
-                        "echo \"server { listen 80; server_name _; location / { proxy_pass http://localhost:9000; proxy_set_header Host \\$host; proxy_set_header X-Real-IP \\$remote_addr; proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \\$scheme; proxy_buffering off; proxy_request_buffering off; client_max_body_size 100M; } }\" > /etc/nginx/conf.d/default.conf && nginx -g \"daemon off;\""
+                        "echo \":80 { reverse_proxy localhost:9000 }\" > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile"
                       ]
                     }
                   }

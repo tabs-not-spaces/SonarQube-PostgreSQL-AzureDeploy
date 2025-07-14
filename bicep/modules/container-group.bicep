@@ -14,8 +14,8 @@ param dockerHubPassword string
 @description('SonarQube container image version')
 param sonarQubeVersion string = 'community'
 
-@description('Nginx container image version')
-param nginxVersion string = 'alpine'
+@description('Caddy container image version')
+param caddyVersion string = 'alpine'
 
 @description('CPU cores for the container group')
 param cpuCores int = 2
@@ -39,7 +39,7 @@ param databaseName string
 @description('Tags to apply to resources')
 param tags object = {}
 
-// Nginx configuration will be provided via a simple approach
+// Caddy configuration will be provided via a simple approach
 // since Container Instances don't support ConfigMaps like Kubernetes
 
 resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01' = {
@@ -118,9 +118,9 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
         }
       }
       {
-        name: 'nginx'
+        name: 'caddy'
         properties: {
-          image: 'nginx:${nginxVersion}'
+          image: 'caddy:${caddyVersion}'
           resources: {
             requests: {
               cpu: json('0.5')
@@ -136,7 +136,7 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
           command: [
             '/bin/sh'
             '-c'
-            'echo "server { listen 80; server_name _; location / { proxy_pass http://localhost:9000; proxy_set_header Host \\$host; proxy_set_header X-Real-IP \\$remote_addr; proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \\$scheme; proxy_buffering off; proxy_request_buffering off; client_max_body_size 100M; } }" > /etc/nginx/conf.d/default.conf && nginx -g "daemon off;"'
+            'echo ":80 { reverse_proxy localhost:9000 }" > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile'
           ]
         }
       }
