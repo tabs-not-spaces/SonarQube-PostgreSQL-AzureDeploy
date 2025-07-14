@@ -17,12 +17,21 @@ param databaseName string = 'sonarqube'
 @description('Container group name')
 param containerGroupName string = 'sonarqube-container-group'
 
-@description('Docker Hub username')
-param dockerHubUsername string
+@description('Docker Hub username (optional, used only if useACR is false)')
+param dockerHubUsername string = ''
 
 @secure()
-@description('Docker Hub password/token')
-param dockerHubPassword string
+@description('Docker Hub password/token (optional, used only if useACR is false)')
+param dockerHubPassword string = ''
+
+@description('Whether to use Azure Container Registry instead of Docker Hub')
+param useACR bool = false
+
+@description('Azure Container Registry name (required if useACR is true)')
+param acrName string = ''
+
+@description('Create new ACR or use existing ACR in the same resource group')
+param createACR bool = false
 
 @description('SonarQube version tag')
 param sonarQubeVersion string = 'community'
@@ -40,6 +49,32 @@ param memoryInGb int = 4
 param tags object = {
   Application: 'SonarQube'
   Environment: 'Production'
+}
+
+// Deploy ACR if useACR is true and createACR is true
+module acr 'modules/acr.bicep' = if (useACR && createACR) {
+  name: 'acr-deployment'
+  params: {
+    location: location
+    acrName: acrName
+    tags: tags
+  }
+}
+
+// Reference existing ACR if useACR is true but createACR is false
+resource existingACR 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = if (useACR && !createACR) {
+  name: acrName
+}
+
+// Deploy managed identity if useACR is true
+module managedIdentity 'modules/managed-identity.bicep' = if (useACR) {
+  name: 'managed-identity-deployment'
+  params: {
+    location: location
+    identityName: '${containerGroupName}-identity'
+    acrName: acrName
+    tags: tags
+  }
 }
 
 // Deploy PostgreSQL Flexible Server
@@ -63,6 +98,9 @@ module containerGroup 'modules/container-group.bicep' = {
     containerGroupName: containerGroupName
     dockerHubUsername: dockerHubUsername
     dockerHubPassword: dockerHubPassword
+    useACR: useACR
+    acrLoginServer: useACR ? (createACR ? acr.outputs.acrLoginServer : existingACR.properties.loginServer) : ''
+    managedIdentityId: useACR ? managedIdentity.outputs.identityId : ''
     sonarQubeVersion: sonarQubeVersion
     caddyVersion: caddyVersion
     cpuCores: cpuCores
@@ -73,6 +111,7 @@ module containerGroup 'modules/container-group.bicep' = {
     databaseName: databaseName
     tags: tags
   }
+  dependsOn: useACR ? [managedIdentity] : []
 }
 
 @description('PostgreSQL server FQDN')
@@ -83,3 +122,9 @@ output sonarQubeUrl string = containerGroup.outputs.sonarQubeUrl
 
 @description('Container group public IP')
 output publicIpAddress string = containerGroup.outputs.publicIpAddress
+
+@description('ACR login server (if ACR is used)')
+output acrLoginServer string = useACR ? (createACR ? acr.outputs.acrLoginServer : existingACR.properties.loginServer) : ''
+
+@description('Managed identity client ID (if ACR is used)')
+output managedIdentityClientId string = useACR ? managedIdentity.outputs.clientId : ''
