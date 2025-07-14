@@ -127,6 +127,10 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
           ]
           volumeMounts: [
             {
+              name: 'sonarqube-conf'
+              mountPath: '/opt/sonarqube/conf'
+            }
+            {
               name: 'sonarqube-data'
               mountPath: '/opt/sonarqube/data'
             }
@@ -158,31 +162,58 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
             }
           ]
           command: [
-            '/bin/sh'
-            '-c'
-            'echo ":80 { reverse_proxy localhost:9000 }" > /etc/caddy/Caddyfile && caddy run --config /etc/caddy/Caddyfile'
+            'caddy'
+            'reverse-proxy'
+            '--from'
+            ':80'
+            '--to'
+            'localhost:9000'
           ]
         }
       }
     ]
     volumes: [
       {
+        name: 'sonarqube-conf'
+        azureFile: {
+          shareName: 'conf'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
+      }
+      {
         name: 'sonarqube-data'
-        emptyDir: {}
+        azureFile: {
+          shareName: 'data'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
       }
       {
         name: 'sonarqube-logs'
-        emptyDir: {}
+        azureFile: {
+          shareName: 'logs'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
       }
       {
         name: 'sonarqube-extensions'
-        emptyDir: {}
+        azureFile: {
+          shareName: 'extensions'
+          storageAccountName: storageAccount.name
+          storageAccountKey: storageAccount.listKeys().keys[0].value
+          readOnly: false
+        }
       }
     ]
   }
 }
 
-// Create a storage account for persistent SonarQube data (optional enhancement)
+// Create a storage account for persistent SonarQube data
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: 'sonarqube${uniqueString(resourceGroup().id)}'
   location: location
@@ -198,10 +229,32 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   }
 }
 
-resource fileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
-  name: '${storageAccount.name}/default/sonarqube-data'
+// Create file shares for SonarQube persistence
+resource confFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/conf'
+  properties: {
+    shareQuota: 1
+  }
+}
+
+resource dataFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/data'
   properties: {
     shareQuota: 10
+  }
+}
+
+resource logsFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/logs'
+  properties: {
+    shareQuota: 5
+  }
+}
+
+resource extensionsFileShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-01-01' = {
+  name: '${storageAccount.name}/default/extensions'
+  properties: {
+    shareQuota: 5
   }
 }
 
@@ -213,3 +266,6 @@ output publicIpAddress string = containerGroup.properties.ipAddress.ip
 
 @description('The container group name')
 output containerGroupName string = containerGroup.name
+
+@description('The storage account name used for persistence')
+output storageAccountName string = storageAccount.name

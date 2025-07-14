@@ -80,6 +80,27 @@ az deployment group create \
   --parameters @parameters/main.parameters.json
 ```
 
+#### 5. Upload SonarQube configuration files
+After deployment, upload the required configuration files:
+```bash
+# Get the storage account name from deployment outputs
+STORAGE_ACCOUNT=$(az deployment group show \
+  --resource-group rg-sonarqube \
+  --name main \
+  --query 'properties.outputs.storageAccountName.value' \
+  --output tsv)
+
+# Upload configuration files
+./scripts/upload-config.sh -g rg-sonarqube -s $STORAGE_ACCOUNT
+```
+
+#### 6. Restart container group to pick up configuration
+```bash
+az container restart \
+  --resource-group rg-sonarqube \
+  --name sonarqube-container-group
+```
+
 #### 5. Get deployment outputs
 ```bash
 az deployment group show \
@@ -161,6 +182,8 @@ Monitor through Azure Portal or Azure Monitor:
    - Check Docker Hub credentials
    - Verify container resource allocations
    - Review container logs
+   - **For SonarQube specifically**: Ensure `sonar.properties` is uploaded to the conf file share
+   - **Memory mapping error**: The included `sonar.properties` disables memory mapping which is required for containers
 
 2. **Database connection issues**
    - Verify PostgreSQL firewall rules
@@ -171,6 +194,11 @@ Monitor through Azure Portal or Azure Monitor:
    - Verify SonarQube container is running
    - Check port configurations
    - Review caddy logs
+
+4. **Configuration not taking effect**
+   - Ensure configuration files are uploaded to Azure File Shares
+   - Restart the container group after uploading config files
+   - Check volume mounts in container logs
 
 ### Cleanup
 To remove all resources:
