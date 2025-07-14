@@ -185,6 +185,16 @@ Monitor through Azure Portal or Azure Monitor:
 
 ## Troubleshooting
 
+### Container Restart Policy
+
+The deployment uses `restartPolicy: "Never"` to prevent containers from getting stuck in crash loops. This means:
+- Failed containers will **not** automatically restart
+- Container logs are preserved for debugging
+- You can examine failed container states without interference
+- **Manual restart required** after fixing issues: `az container restart --resource-group <rg> --name <container-group>`
+
+For detailed debugging instructions, see the [Debugging Guide](docs/DEBUGGING.md).
+
 ### Common Issues
 
 1. **Container startup failures**
@@ -240,7 +250,8 @@ az group delete --name rg-sonarqube --yes --no-wait
 ├── scripts/
 │   └── Push-ImagesToACR.ps1          # PowerShell script to populate ACR
 ├── docs/
-│   └── ACR-Integration.md             # ACR integration guide
+│   ├── ACR-Integration.md             # ACR integration guide
+│   └── DEBUGGING.md                   # Container debugging guide
 ├── azuredeploy.json                  # ARM template (generated from Bicep)
 ├── azuredeploy.parameters.json       # ARM parameters for Deploy button
 ├── deploy.sh                         # Automated deployment script
