@@ -178,12 +178,9 @@ resource containerGroup 'Microsoft.ContainerInstance/containerGroups@2023-05-01'
             }
           ]
           command: [
-            'caddy'
-            'reverse-proxy'
-            '--from'
-            ':80'
-            '--to'
-            'localhost:9000'
+            '/bin/sh'
+            '-c'
+            'caddy reverse-proxy --from :80 --to localhost:9000'
           ]
         }
       }
