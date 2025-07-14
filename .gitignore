@@ -1,0 +1,22 @@
+# Bicep generated files
+*.json
+
+# Except parameters files
+!parameters/*.json
+
+# Azure CLI output
+*.log
+
+# Temporary files
+*.tmp
+.DS_Store
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local environment files
+.env
+.env.local
