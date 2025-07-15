@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.36.177.2456",
-      "templateHash": "10391590325545819133"
+      "templateHash": "13840246656213040299"
     }
   },
   "parameters": {
@@ -807,7 +807,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.36.177.2456",
-              "templateHash": "4846447565007789771"
+              "templateHash": "13082934779222960486"
             }
           },
           "parameters": {
@@ -1038,12 +1038,9 @@
                         }
                       ],
                       "command": [
-                        "caddy",
-                        "reverse-proxy",
-                        "--from",
-                        ":80",
-                        "--to",
-                        "localhost:9000"
+                        "/bin/sh",
+                        "-c",
+                        "caddy reverse-proxy --from :80 --to localhost:9000"
                       ]
                     }
                   }
